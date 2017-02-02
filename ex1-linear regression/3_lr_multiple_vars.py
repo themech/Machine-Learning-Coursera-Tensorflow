@@ -25,7 +25,7 @@ X = tf.placeholder('float', shape=X_data.shape)
 Y = tf.placeholder('float', shape=Y_data.shape)
 
 # Set model weights
-W = tf.Variable(tf.zeros([n_features,1]), name='weight')
+W = tf.Variable(tf.zeros([n_features, 1]), name='weight')
 b = tf.Variable(tf.zeros(1), name='bias')
 
 # Construct a linear model
@@ -50,8 +50,8 @@ with tf.Session() as sess:
         # Fit all training data
         _, cost_value, w_value, b_value = sess.run((optimizer, cost, W, b), feed_dict={X: X_data, Y: Y_data})
 
-        steps = numpy.append(steps, epoch)
-        J_hist = numpy.append(J_hist, cost_value)
+        steps = numpy.append(steps, [epoch])
+        J_hist = numpy.append(J_hist, [cost_value])
 
         # Display logs per epoch step
         if (epoch+1) % display_step == 0:
