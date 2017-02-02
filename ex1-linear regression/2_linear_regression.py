@@ -12,21 +12,21 @@ data = pd.read_csv('data/ex1data1.txt', names=['population', 'profit'])
 X_data = data[['population']]
 Y_data = data[['profit']]
 
-n_samples = X_data.shape[0] # Number of rows
+n_samples = X_data.shape[0]  # Number of rows
 
 # tf Graph Input
 X = tf.placeholder('float', shape=X_data.shape)
 Y = tf.placeholder('float', shape=Y_data.shape)
 
 # Set model weights
-W = tf.Variable(tf.zeros([1,1]), name='weight')
+W = tf.Variable(tf.zeros([1, 1]), name='weight')
 b = tf.Variable(tf.zeros(1), name='bias')
 
 # Construct a linear model
 pred = tf.add(tf.mul(X, W), b)
 
 # Mean squared error
-#cost = tf.reduce_sum(tf.pow(pred-Y, 2))/(2*n_samples)
+# cost = tf.reduce_sum(tf.pow(pred-Y, 2))/(2*n_samples)
 cost = tf.reduce_mean(tf.square(pred-Y)) / 2.0
 
 # Gradient descent
