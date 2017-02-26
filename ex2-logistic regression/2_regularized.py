@@ -6,7 +6,7 @@ import tensorflow as tf
 
 FEATURE_MAPPING_POWER = 6
 NUM_EPOCHS = 25000
-REG_LAMBDA = 0.1 # overfit: 0.0001, ok: 0.1-0.01, underfit: 5
+REG_LAMBDA = 0.1  # overfit: 0.0001, ok: 0.1-0.01, underfit: 5
 MESH_RESOLUTION = 250.0
 
 # 1. Read the data and print the sample
@@ -19,8 +19,7 @@ sns.set(context='notebook', style='darkgrid', palette=sns.color_palette('RdBu', 
 sns.lmplot('test1', 'test2', hue='accepted', data=df,
            size=6,
            fit_reg=False,
-           scatter_kws={'s': 50}
-          )
+           scatter_kws={'s': 50})
 
 plt.show()
 
@@ -30,8 +29,8 @@ plt.show()
 def feature_mapping(f1, f2, power):
     """Helper function for feature mapping"""
     data = {'f{}{}'.format(i - p, p): np.power(f1, i - p) * np.power(f2, p)
-                for i in np.arange(power + 1)
-                for p in np.arange(i + 1)
+            for i in np.arange(power + 1)
+            for p in np.arange(i + 1)
             }
 
     return pd.DataFrame(data)
@@ -49,11 +48,11 @@ W = tf.Variable(tf.zeros([numFeatures, 1]))
 # after feature mapping, f00 is always 1, so W[0] will be our b
 
 # Sigmoid is used for the hypotesis - h(x) = x * W + b
-pred = tf.nn.sigmoid(tf.matmul(X , W))
+pred = tf.nn.sigmoid(tf.matmul(X, W))
 
-cost = -tf.reduce_sum(Y * tf.log(tf.clip_by_value(pred, 1e-9, 1)) + \
+cost = -tf.reduce_sum(Y * tf.log(tf.clip_by_value(pred, 1e-9, 1)) +
                       (1 - Y)*tf.log(tf.clip_by_value(1 - pred, 1e-9, 1))) / numSamples
-regularized_W = tf.slice(W, [1,0], [-1,-1]) # don't regularize W[0]
+regularized_W = tf.slice(W, [1, 0], [-1, -1])  # don't regularize W[0]
 regularizer = tf.reduce_sum(tf.square(regularized_W)) * REG_LAMBDA / numFeatures
 
 correct_predict = tf.equal(tf.cast(tf.greater(pred, 0.5), tf.float32), Y)
@@ -68,11 +67,12 @@ with tf.Session() as sess:
     sess.run(init)
     w_value = []
     for epoch in range(NUM_EPOCHS):
-        _, cost_value, reg_cost, accuracy_value, w_value = sess.run([optimizer, cost, regularizer, accuracy, W], feed_dict={X: X_data, Y: Y_data})
+        _, cost_value, reg_cost, accuracy_value, w_value = sess.run(
+            [optimizer, cost, regularizer, accuracy, W], feed_dict={X: X_data, Y: Y_data})
         # Display logs per epoch step
         if (epoch+1) % display_step == 0:
-            print 'Epoch:', '%04d' % (epoch+1), 'cost=', '{:.9f}'.format(cost_value), 'reg=', '{:.9f}'.format(reg_cost), \
-                'accuracy=', accuracy_value
+            print 'Epoch:', '%04d' % (epoch+1), 'cost=', '{:.9f}'.format(cost_value), 'reg=', \
+                '{:.9f}'.format(reg_cost), 'accuracy=', accuracy_value
 
     print 'w_value', w_value
 
