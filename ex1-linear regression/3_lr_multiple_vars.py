@@ -38,7 +38,7 @@ cost = tf.reduce_mean(tf.square(pred-Y)) / 2.0
 optimizer = tf.train.GradientDescentOptimizer(learning_rate).minimize(cost)
 
 # Initializing the variables
-init = tf.initialize_all_variables()
+init = tf.global_variables_initializer()
 
 # Launch the graph
 with tf.Session() as sess:

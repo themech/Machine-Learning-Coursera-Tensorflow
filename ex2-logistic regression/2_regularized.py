@@ -59,7 +59,7 @@ correct_predict = tf.equal(tf.cast(tf.greater(pred, 0.5), tf.float32), Y)
 accuracy = tf.reduce_mean(tf.cast(correct_predict, tf.float32))
 
 optimizer = tf.train.AdamOptimizer(0.01).minimize(cost + regularizer)
-init = tf.initialize_all_variables()
+init = tf.global_variables_initializer()
 
 display_step = 50
 
