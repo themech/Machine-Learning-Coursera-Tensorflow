@@ -105,9 +105,9 @@ pred = tf.argmax(output_layer, 1)
 correct_prediction = tf.equal(pred, tf.argmax(y, 1))
 accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
 
-# Y_data is a 1-column vector with the correct answer (digit) in each row. As out neural network has 10 outputs (1 for
-# each row) wa have to convert Y_data to a sparse matrix. So each row in converted from a single digit to a 10-digit
-# vector having nine zeros and a single number one (indicating the correct answer for a given row/digit)
+# Y_data is a 1-column vector with the correct answer (digit) in each row. As our neural network has 10 outputs (one
+# for each digit) we have to convert Y_data to a sparse matrix. So each row in converted from a single digit to a
+# 10-digit vector having nine zeros and a single number one (indicating the correct answer for a given row/image)
 Y_sparse = sparse.csr_matrix((np.ones(numSamples), Y_data.reshape(numSamples), range(numSamples+1))).toarray()
 
 sess = tf.Session()
