@@ -20,15 +20,14 @@ IMAGE_HEIGHT = 20
 
 # Parse the command line arguments (or use default values).
 parser = argparse.ArgumentParser(description='Recognizing hand-written number using neural network.')
-parser.add_argument('hidden_layer_size', metavar='SIZE', type=int, nargs='?',
-                    help='number of neurons in the hidden layer', default=25)
-parser.add_argument('learning_rate', metavar='LR', type=float, nargs='?',
-                    help='learning rate for the algorithm', default=0.0001)
-parser.add_argument('epochs', metavar='EPOCHS', type=int, nargs='?',
-                    help='number of epochs', default=5000)
-parser.add_argument('optimizer', metavar='O', type=str, nargs='?',
-                    help='tensorflow optimizer class', default='AdamOptimizer')
-parser.add_argument('--verbose', dest='verbose', action='store_true')
+parser.add_argument('-s', '--hidden_layer_size', type=int,
+                    help='number of neurons in the hidden layer (default: 25)', default=25)
+parser.add_argument('-lr', '--learning_rate',type=float,
+                    help='learning rate for the algorithm (default: 0.0001)', default=0.0001)
+parser.add_argument('-e', '--epochs', type=int, help='number of epochs (default: 5000)', default=5000)
+parser.add_argument('-o', '--optimizer', type=str,
+                    help='tensorflow optimizer class (default: AdamOptimizer)', default='AdamOptimizer')
+parser.add_argument('-v', '--verbose', dest='verbose', action='store_true', help='increase output verbosity')
 args = parser.parse_args()
 
 optimizer_class = getattr(tf.train, args.optimizer)

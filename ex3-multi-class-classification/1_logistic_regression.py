@@ -7,14 +7,13 @@ import tensorflow as tf
 
 # Parse the command line arguments (or use default values).
 parser = argparse.ArgumentParser(description='Recognizing hand-written number using multiclass logistic regression.')
-parser.add_argument('learning_rate', metavar='LR', type=float, nargs='?',
-                    help='learning rate for the algorithm', default=0.1)
-parser.add_argument('regularization', metavar='R', type=float, nargs='?',
-                    help='theta regularization value', default=0.1)
-parser.add_argument('epochs', metavar='E', type=int, nargs='?',
-                    help='number of epochs', default=400)
-parser.add_argument('optimizer', metavar='O', type=str, nargs='?',
-                    help='tensorflow optimizer class', default='AdamOptimizer')
+parser.add_argument('-lr', '--learning_rate',type=float,
+                    help='learning rate for the algorithm (default: 0.1)', default=0.1)
+parser.add_argument('-r', '--regularization',type=float,
+                    help='theta regularization value (default: 0.1)', default=0.1)
+parser.add_argument('-e', '--epochs', type=int, help='number of epochs (default: 400)', default=400)
+parser.add_argument('-o', '--optimizer', type=str,
+                    help='tensorflow optimizer class (default: AdamOptimizer)', default='AdamOptimizer')
 # other optimizers to try out: GradientDescentOptimizer, AdadeltaOptimizer, AdagradOptimizer, AdamOptimizer,
 # FtrlOptimizer, RMSPropOptimizer
 
@@ -39,7 +38,6 @@ if args.verbose:
     print 'Shape of the X_data', X_data.shape
     print 'Shape of the Y data', Y_data.shape
 
-# Plot some of the loaded digits.
 def plot_100_images(X):
     """Plot 100 randomly picked digits."""
     width, height = 20, 20
@@ -63,6 +61,7 @@ def plot_100_images(X):
     plt.show()
 
 if args.verbose:
+    # Plot some of the loaded digits.
     plot_100_images(X_data)
 
 # For each row, add a constant (1) at the beginning, needed for logistic regression.
