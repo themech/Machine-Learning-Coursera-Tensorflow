@@ -17,7 +17,7 @@ parser.add_argument('-o', '--optimizer', type=str,
 # other optimizers to try out: GradientDescentOptimizer, AdadeltaOptimizer, AdagradOptimizer, AdamOptimizer,
 # FtrlOptimizer, RMSPropOptimizer
 
-parser.add_argument('--verbose', dest='verbose', action='store_true')
+parser.add_argument('--verbose', dest='verbose', action='store_true', help='increase output verbosity')
 parser.add_argument('--silent', dest='verbose', action='store_false')
 parser.set_defaults(verbose=True)
 args = parser.parse_args()

@@ -22,7 +22,7 @@ IMAGE_HEIGHT = 20
 parser = argparse.ArgumentParser(description='Recognizing hand-written number using neural network.')
 parser.add_argument('-s', '--hidden_layer_size', type=int,
                     help='number of neurons in the hidden layer (default: 25)', default=25)
-parser.add_argument('-lr', '--learning_rate',type=float,
+parser.add_argument('-lr', '--learning_rate', type=float,
                     help='learning rate for the algorithm (default: 0.0001)', default=0.0001)
 parser.add_argument('-e', '--epochs', type=int, help='number of epochs (default: 5000)', default=5000)
 parser.add_argument('-o', '--optimizer', type=str,
