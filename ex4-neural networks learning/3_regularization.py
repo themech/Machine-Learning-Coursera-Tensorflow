@@ -2,8 +2,10 @@
 # Regularization is implemented by minimizing non-bias NN variables.
 # By playing with the "r" parameter you can see that it can decrease the difference between lean and test set accuracy.
 # Unfortunately it doesn't produce better much better results, as fully connected network is not best suited
-# for recognizing images. In te next example we will implement convolutional network that is able to look
-# for specific shapes in the image rather than pixels.
+# for recognizing images. Also regularization that works for linear regression is not best suited for deep networks as
+# they are highly nonconvex.
+# In te next example we will implement convolutional network that is able to look for specific shapes in the image
+# rather than pixels.
 
 import argparse
 import matplotlib.pyplot as plt
