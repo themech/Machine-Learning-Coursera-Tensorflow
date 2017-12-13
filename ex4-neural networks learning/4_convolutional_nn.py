@@ -28,6 +28,8 @@ parser.add_argument('-s', '--fully_connected_layer_size', type=int,
                     help='number of neurons in the densely connected layer (default: 1024)', default=1024)
 parser.add_argument('-d', '--dropout', type=float,
                     help='dropout probability (default: 0.5)', default=0.5)
+parser.add_argument('-c', '--conv_dropout', type=float,
+                    help='convolutional layer dropout (default: 0.95)', default=0.95)
 parser.add_argument('-lr', '--learning_rate', type=float,
                     help='learning rate for the algorithm (default: 0.0001)', default=0.0001)
 parser.add_argument('-b', '--batch_size', type=int,
@@ -101,8 +103,13 @@ y = tf.placeholder(tf.int64, shape=[None])  # simple vector
 
 x_image = tf.reshape(x, [-1, IMAGE_WIDTH, IMAGE_HEIGHT, 1])
 
+# Experiment - dropout for conv layers. Check if that prevents some overfitting in these layers.
+conv_dropout = tf.placeholder(tf.float32)
+
 conv1 = conv_layer(x_image, 1, args.conv1_layer_size)  # First convolutional layer
+conv1 = tf.nn.dropout(conv1, conv_dropout)
 conv2 = conv_layer(conv1, args.conv1_layer_size, args.conv2_layer_size)  # Second convolutional layer
+conv2 = tf.nn.dropout(conv2, conv_dropout)
 
 # Flatten the data before going to the next steps
 flattened = tf.reshape(conv2, [-1, FSIZE * FSIZE * args.conv2_layer_size]) # (20 / 4) * (20 / 4) * 64
@@ -158,8 +165,8 @@ for epoch in xrange(args.epochs):
     with sess.as_default():
 
         if not epoch % 15:
-            train_accuracy = accuracy.eval(feed_dict={x: X_data, y: Y_data, keep_prob: 1.0})
-            test_accuracy = accuracy.eval(feed_dict={x: X_test_data, y: Y_test_data, keep_prob: 1.0})
+            train_accuracy = accuracy.eval(feed_dict={x: X_data, y: Y_data, keep_prob: 1.0, conv_dropout: 1.0})
+            test_accuracy = accuracy.eval(feed_dict={x: X_test_data, y: Y_test_data, keep_prob: 1.0, conv_dropout: 1.0})
             iter_arr.append(epoch)
             train_accuracy_arr.append(train_accuracy)
             test_accuracy_arr.append(test_accuracy)
@@ -167,14 +174,14 @@ for epoch in xrange(args.epochs):
                 print "Epoch:", '%04d' % (epoch + 1), ", accuracy: ", train_accuracy, ", test accuracy: ", test_accuracy
 
         X_data_batch, Y_data_batch = next_batch(args.batch_size, X_data, Y_data)
-        optimizer.run(feed_dict={x: X_data_batch, y: Y_data_batch, keep_prob: args.dropout})
+        optimizer.run(feed_dict={x: X_data_batch, y: Y_data_batch, keep_prob: args.dropout, conv_dropout: args.conv_dropout})
 
 print "Accuracy report for the learning set"
-y_pred = sess.run(pred, feed_dict={x: X_data, y: Y_data, keep_prob: 1.0})
+y_pred = sess.run(pred, feed_dict={x: X_data, y: Y_data, keep_prob: 1.0, conv_dropout: 1.0})
 print metrics.classification_report(Y_data, y_pred)
 
 print "Accuracy report for the test set"
-y_test_pred = sess.run(pred, feed_dict={x: X_test_data, y: Y_test_data, keep_prob: 1.0})
+y_test_pred = sess.run(pred, feed_dict={x: X_test_data, y: Y_test_data, keep_prob: 1.0, conv_dropout: 1.0})
 print "shape of x", X_test_data.shape
 print "shape of y", Y_test_data.shape
 print "shape of y_test_pred", y_test_pred.shape
