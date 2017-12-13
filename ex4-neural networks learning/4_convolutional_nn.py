@@ -112,8 +112,8 @@ conv2 = conv_layer(conv1, CONV1_SIZE, CONV2_SIZE)  # Second convolutional layer
 conv2 = tf.nn.dropout(conv2, conv_dropout)
 
 # Flatten the data before going to the next steps
-resize_width = int(math.ceil(float(IMAGE_WIDTH)/(2<<(CONV_LAYERS-1))))
-resize_height = int(math.ceil(float(IMAGE_WIDTH)/(2<<(CONV_LAYERS-1))))
+resize_width = int(math.ceil(float(IMAGE_WIDTH) / (2 << (CONV_LAYERS - 1))))
+resize_height = int(math.ceil(float(IMAGE_HEIGHT) / (2 << (CONV_LAYERS - 1))))
 flattened = tf.reshape(conv2, [-1, CONV2_SIZE * resize_width * resize_height])
 
 # Create a densely connected layer
