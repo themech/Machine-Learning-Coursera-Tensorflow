@@ -5,6 +5,7 @@
 # training iteration we will use a subset of our train set (default: 50 images). This helps us iterate quicker.
 
 import argparse
+import math
 import matplotlib.pyplot as plt
 import numpy as np
 from scipy import io
@@ -17,13 +18,12 @@ IMAGE_WIDTH = 20
 IMAGE_HEIGHT = 20
 TEST_SIZE = 0.25  # test set will be 25% of the data
 FSIZE = 5  # Convolutional layer filer size (5x5px)
+CONV_LAYERS = 2
+CONV1_SIZE = 32
+CONV2_SIZE = 64
 
 # Parse the command line arguments (or use default values)
 parser = argparse.ArgumentParser(description='Recognizing hand-written number using neural network.')
-parser.add_argument('-c1', '--conv1_layer_size', type=int,
-                    help='size of the first convolutional layer (default: 32)', default=32)
-parser.add_argument('-c2', '--conv2_layer_size', type=int,
-                    help='size of the first convolutional layer (default: 64)', default=64)
 parser.add_argument('-s', '--fully_connected_layer_size', type=int,
                     help='number of neurons in the densely connected layer (default: 1024)', default=1024)
 parser.add_argument('-d', '--dropout', type=float,
@@ -106,23 +106,25 @@ x_image = tf.reshape(x, [-1, IMAGE_WIDTH, IMAGE_HEIGHT, 1])
 # Experiment - dropout for conv layers. Check if that prevents some overfitting in these layers.
 conv_dropout = tf.placeholder(tf.float32)
 
-conv1 = conv_layer(x_image, 1, args.conv1_layer_size)  # First convolutional layer
+conv1 = conv_layer(x_image, 1, CONV1_SIZE)  # First convolutional layer
 conv1 = tf.nn.dropout(conv1, conv_dropout)
-conv2 = conv_layer(conv1, args.conv1_layer_size, args.conv2_layer_size)  # Second convolutional layer
+conv2 = conv_layer(conv1, CONV1_SIZE, CONV2_SIZE)  # Second convolutional layer
 conv2 = tf.nn.dropout(conv2, conv_dropout)
 
 # Flatten the data before going to the next steps
-flattened = tf.reshape(conv2, [-1, FSIZE * FSIZE * args.conv2_layer_size]) # (20 / 4) * (20 / 4) * 64
+resize_width = int(math.ceil(float(IMAGE_WIDTH)/(2<<(CONV_LAYERS-1))))
+resize_height = int(math.ceil(float(IMAGE_WIDTH)/(2<<(CONV_LAYERS-1))))
+flattened = tf.reshape(conv2, [-1, CONV2_SIZE * resize_width * resize_height])
 
 # Create a densely connected layer
-fc = fc_layer(flattened, FSIZE * FSIZE * args.conv2_layer_size, args.fully_connected_layer_size)
+fc = fc_layer(flattened, CONV2_SIZE * resize_width * resize_height, args.fully_connected_layer_size)
 
 # Apply dropout to reduce overfitting
 keep_prob = tf.placeholder(tf.float32)
-fc1_drop = tf.nn.dropout(fc, keep_prob)
+fc_drop = tf.nn.dropout(fc, keep_prob)
 
 # Read the results, 10 outputs as we have 10 classes (digits)
-output_layer = readout_layer(fc1_drop, args.fully_connected_layer_size, 10)
+output_layer = readout_layer(fc_drop, args.fully_connected_layer_size, 10)
 
 # define cost function
 cost = tf.reduce_mean(tf.nn.sparse_softmax_cross_entropy_with_logits(logits=output_layer, labels=y))
@@ -164,7 +166,9 @@ def next_batch(num, data, labels):
 for epoch in xrange(args.epochs):
     with sess.as_default():
 
-        if not epoch % 15:
+        if not (epoch + 1) % 15:
+            test_accuracy = 0
+            train_accuracy = 0
             train_accuracy = accuracy.eval(feed_dict={x: X_data, y: Y_data, keep_prob: 1.0, conv_dropout: 1.0})
             test_accuracy = accuracy.eval(feed_dict={x: X_test_data, y: Y_test_data, keep_prob: 1.0, conv_dropout: 1.0})
             iter_arr.append(epoch)
