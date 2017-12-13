@@ -14,7 +14,7 @@ from sklearn import metrics
 from sklearn.model_selection import train_test_split
 import tensorflow as tf
 
-# size of the a single digit image (in pixels)
+# size of a single digit image (in pixels)
 IMAGE_WIDTH = 20
 IMAGE_HEIGHT = 20
 TEST_SIZE = 0.25  # test set will be 25% of the data
@@ -41,9 +41,9 @@ X_data, Y_data = data['X'], data['y']
 # y==10 is digit 0, convert it to 0 then to make the code below simpler
 Y_data[Y_data == 10] = 0
 
+# Split the data
 X_data, X_test_data, Y_data, Y_test_data = train_test_split(X_data, Y_data, test_size=0.25)
 
-# Split the data
 if args.verbose:
     print 'Shape of the X_data', X_data.shape
     print 'Shape of the Y_data', Y_data.shape
