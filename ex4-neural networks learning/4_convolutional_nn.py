@@ -111,7 +111,8 @@ conv1 = tf.nn.dropout(conv1, conv_dropout)
 conv2 = conv_layer(conv1, CONV1_SIZE, CONV2_SIZE)  # Second convolutional layer
 conv2 = tf.nn.dropout(conv2, conv_dropout)
 
-# Flatten the data before going to the next steps
+# Flatten the data before going to the next steps. Conv layer and polling change the dimension, each layer decreases the
+# size by half. so the final size can be calculated by rounding up the image_size/(2^conv_layers)
 resize_width = int(math.ceil(float(IMAGE_WIDTH) / (2 << (CONV_LAYERS - 1))))
 resize_height = int(math.ceil(float(IMAGE_HEIGHT) / (2 << (CONV_LAYERS - 1))))
 flattened = tf.reshape(conv2, [-1, CONV2_SIZE * resize_width * resize_height])
