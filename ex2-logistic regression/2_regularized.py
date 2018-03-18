@@ -5,7 +5,7 @@ import seaborn as sns
 import tensorflow as tf
 
 FEATURE_MAPPING_POWER = 6
-NUM_EPOCHS = 25000
+NUM_EPOCHS = 10000
 REG_LAMBDA = 0.1  # overfit: 0.0001, ok: 0.1-0.01, underfit: 5
 MESH_RESOLUTION = 250.0
 
