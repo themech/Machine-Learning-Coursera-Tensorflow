@@ -12,10 +12,11 @@ MESH_RESOLUTION = 250.0
 # 1. Read the data and print the sample
 df = pd.read_csv('data/ex2data2.txt', names=['test1', 'test2', 'accepted'])
 print(df.shape)
-print df.head()
+print(df.head())
 
 # 2. Visualize the data
-sns.set(context='notebook', style='darkgrid', palette=sns.color_palette('RdBu', 2))
+sns.set(context='notebook', style='darkgrid',
+        palette=sns.color_palette('RdBu', 2))
 sns.lmplot('test1', 'test2', hue='accepted', data=df,
            size=6,
            fit_reg=False,
@@ -35,6 +36,7 @@ def feature_mapping(f1, f2, power):
 
     return pd.DataFrame(data)
 
+
 X_data = feature_mapping(df.test1, df.test2, power=FEATURE_MAPPING_POWER)
 Y_data = df[['accepted']]
 numFeatures = X_data.shape[1]
@@ -51,9 +53,10 @@ W = tf.Variable(tf.zeros([numFeatures, 1]))
 pred = tf.nn.sigmoid(tf.matmul(X, W))
 
 cost = -tf.reduce_sum(Y * tf.log(tf.clip_by_value(pred, 1e-9, 1)) +
-                      (1 - Y)*tf.log(tf.clip_by_value(1 - pred, 1e-9, 1))) / numSamples
+                      (1 - Y) * tf.log(tf.clip_by_value(1 - pred, 1e-9, 1))
+                      ) / numSamples
 regularized_W = tf.slice(W, [1, 0], [-1, -1])  # don't regularize W[0]
-regularizer = tf.reduce_sum(tf.square(regularized_W)) * REG_LAMBDA / numFeatures
+regularizer = tf.reduce_sum(tf.square(regularized_W))*REG_LAMBDA / numFeatures
 
 correct_predict = tf.equal(tf.cast(tf.greater(pred, 0.5), tf.float32), Y)
 accuracy = tf.reduce_mean(tf.cast(correct_predict, tf.float32))
@@ -68,13 +71,14 @@ with tf.Session() as sess:
     w_value = []
     for epoch in range(NUM_EPOCHS):
         _, cost_value, reg_cost, accuracy_value, w_value = sess.run(
-            [optimizer, cost, regularizer, accuracy, W], feed_dict={X: X_data, Y: Y_data})
+            [optimizer, cost, regularizer, accuracy, W],
+            feed_dict={X: X_data, Y: Y_data})
         # Display logs per epoch step
         if (epoch+1) % display_step == 0:
-            print 'Epoch:', '%04d' % (epoch+1), 'cost=', '{:.9f}'.format(cost_value), 'reg=', \
-                '{:.9f}'.format(reg_cost), 'accuracy=', accuracy_value
+            print('Epoch: {:04d} cost={:.9f} reg={:.9f} accuracy={}'.format(
+                epoch+1, cost_value, reg_cost, accuracy_value))
 
-    print 'w_value', w_value
+    print('w_value', w_value)
 
     # Plot the input data
     x_pos = [v for v in df['test1'].values]
@@ -85,9 +89,12 @@ with tf.Session() as sess:
     # Plot the decision boundary contour
     x_min, x_max = min(x_pos) - 0.5, max(x_pos) + 0.5
     y_min, y_max = min(y_pos) - 0.5, max(y_pos) + 0.5
-    mesh_x, mesh_y = np.meshgrid(np.arange(x_min, x_max, (x_max - x_min) / MESH_RESOLUTION),
-                                 np.arange(y_min, y_max, (y_max - y_min) / MESH_RESOLUTION))
-    pts = feature_mapping(mesh_x.ravel(), mesh_y.ravel(), power=FEATURE_MAPPING_POWER)
+    mesh_x, mesh_y = np.meshgrid(np.arange(x_min, x_max,
+                                           (x_max - x_min) / MESH_RESOLUTION),
+                                 np.arange(y_min, y_max,
+                                           (y_max - y_min) / MESH_RESOLUTION))
+    pts = feature_mapping(mesh_x.ravel(), mesh_y.ravel(),
+                          power=FEATURE_MAPPING_POWER)
     classifier = tf.greater(pred, 0.5)
     mesh_color = sess.run(classifier, feed_dict={X: pts})
     mesh_color = np.array(mesh_color).reshape(mesh_x.shape)

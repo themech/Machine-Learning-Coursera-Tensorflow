@@ -7,15 +7,15 @@ import tensorflow as tf
 # V1. Print data sample
 df = pd.read_csv('data/ex2data1.txt', names=['exam1', 'exam2', 'admitted'])
 print(df.shape)
-print df.head()
+print(df.head())
 
 # 2. Visualize the data
-sns.set(context='notebook', style='darkgrid', palette=sns.color_palette('RdBu', 2))
+sns.set(context='notebook', style='darkgrid',
+        palette=sns.color_palette('RdBu', 2))
 sns.lmplot('exam1', 'exam2', hue='admitted', data=df,
            size=6,
            fit_reg=False,
-           scatter_kws={'s': 50}
-           )
+           scatter_kws={'s': 50})
 plt.show()
 
 
@@ -23,6 +23,7 @@ plt.show()
 # Sigmoid function
 def sigmoid(z):
     return 1 / (1 + np.exp(-z))
+
 
 fig, ax = plt.subplots(figsize=(8, 6))
 ax.plot(np.arange(-10, 10, step=0.01),
@@ -64,14 +65,15 @@ display_step = 50
 with tf.Session() as sess:
     sess.run(init)
     for epoch in range(numEpochs):
-        _, cost_value, accuracy_value = sess.run([optimizer, cost, accuracy], feed_dict={X: X_data, Y: Y_data})
+        _, cost_value, accuracy_value = sess.run(
+            [optimizer, cost, accuracy], feed_dict={X: X_data, Y: Y_data})
         # Display logs per epoch step
         if (epoch+1) % display_step == 0:
-            print 'Epoch:', '%04d' % (epoch+1), 'cost=', '{:.9f}'.format(cost_value), \
-                'accuracy=', accuracy_value
+            print('Epoch: {:04d} cost={:.9f} accuracy={}'.format(
+                epoch+1, cost_value, accuracy_value))
 
     w_value, b_value = sess.run([W, b], feed_dict={X: X_data, Y: Y_data})
-    print w_value, b_value
+    print('W: {}, b: {}'.format(w_value, b_value))
 
     # Plot the decision boundary
     sns.set(context='notebook', style='ticks', font_scale=1.5)
