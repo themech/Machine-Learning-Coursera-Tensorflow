@@ -30,7 +30,8 @@ pred = tf.add(tf.multiply(X, W), b)
 cost = tf.reduce_mean(tf.square(pred-Y)) / 2.0
 
 # Gradient descent
-# may try other optimizers like AdadeltaOptimizer, AdagradOptimizer, AdamOptimizer, FtrlOptimizer or RMSPropOptimizer
+# may try other optimizers like AdadeltaOptimizer, AdagradOptimizer,
+# AdamOptimizer, FtrlOptimizer or RMSPropOptimizer
 optimizer = tf.train.GradientDescentOptimizer(learning_rate).minimize(cost)
 
 # Initializing the variables
@@ -42,15 +43,18 @@ with tf.Session() as sess:
     cost_value, w_value, b_value = (0.0, 0.0, 0.0)
     for epoch in range(training_epochs):
         # Fit all training data
-        _, cost_value, w_value, b_value = sess.run((optimizer, cost, W, b), feed_dict={X: X_data, Y: Y_data})
+        _, cost_value, w_value, b_value = sess.run(
+            (optimizer, cost, W, b),
+            feed_dict={X: X_data, Y: Y_data})
 
         # Display logs per epoch step
         if (epoch+1) % display_step == 0:
-            print 'Epoch:', '%04d' % (epoch+1), 'cost=', '{:.9f}'.format(cost_value), \
-                'W=', w_value, 'b=', b_value
+            print('Epoch: {:04d} cost={:.9f} W={} b={}'.format(
+                epoch+1, cost_value, w_value, b_value))
 
-    print 'Optimization Finished!'
-    print 'Training cost=', cost_value, 'W=', w_value, 'b=', b_value, '\n'
+    print('Optimization Finished!')
+    print('Training cost={:.9f} W={} b={}'.format(
+        cost_value, w_value, b_value))
 
     # Graphic display
     plt.plot(X_data, Y_data, 'ro', label='Original data')
