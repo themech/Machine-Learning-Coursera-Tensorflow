@@ -12,9 +12,11 @@ import argparse
 import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
-from scipy import io, misc, sparse
+from scipy import io
 from sklearn import metrics
 import tensorflow as tf
+
+tf.logging.set_verbosity(tf.logging.ERROR)
 
 # size of the a single digit image (in pixels)
 IMAGE_WIDTH = 20
@@ -24,16 +26,19 @@ IMAGE_HEIGHT = 20
 parser = argparse.ArgumentParser(
     description='Recognizing hand-written number using neural network.')
 parser.add_argument('-s', '--hidden_layer_size', type=int,
-                    help='number of neurons in the hidden layer (default: 25)',
-                    default=25)
+                    help='number of neurons in the hidden layer (default: 64)',
+                    default=64)
 parser.add_argument('-lr', '--learning_rate', type=float,
-                    help='learning rate for the algorithm (default: 0.0001)',
-                    default=0.0001)
+                    help='learning rate for the algorithm (default: 0.5)',
+                    default=0.5)
+parser.add_argument('-d', '--decay', dest='decay', type=float,
+                    help='learning rate decay (default: 0.9999, 1.0 means '
+                    'no decay)', default=0.9999)
 parser.add_argument('-e', '--epochs', type=int,
-                    help='number of epochs (default: 5000)', default=5000)
+                    help='number of epochs (default: 1000)', default=1000)
 parser.add_argument('-o', '--optimizer', type=str,
-                    help='tensorflow optimizer class (default: AdamOptimizer)',
-                    default='AdamOptimizer')
+                    help='tensorflow optimizer class '
+                    '(default: AdagradOptimizer)', default='AdagradOptimizer')
 parser.add_argument('-v', '--verbose', dest='verbose', action='store_true',
                     help='increase output verbosity')
 args = parser.parse_args()
@@ -72,8 +77,7 @@ def plot_100_images(X, indices=None):
         big_picture[irow * height:irow * height + iimg.shape[0],
                     icol * width:icol * width + iimg.shape[1]] = iimg
         icol += 1
-    img = misc.toimage(big_picture)
-    plt.imshow(img, cmap=matplotlib.cm.Greys_r)
+    plt.imshow(big_picture, cmap=matplotlib.cm.Greys_r)
 
     plt.show()
 
@@ -92,12 +96,13 @@ def fc_layer(input, size_in, size_out):
     The layer is initialized with random numbers from normal distribution.
     """
     w = tf.Variable(tf.truncated_normal([size_in, size_out], stddev=0.1))
-    b = tf.Variable(tf.constant(0.1, shape=[size_out]))
+    b = tf.Variable(tf.truncated_normal([size_out], stddev=0.1))
     return tf.nn.relu(tf.matmul(input, w) + b)
 
 
 # Setup placeholders, and reshape the data
 x = tf.placeholder(tf.float32, shape=[None, IMAGE_WIDTH * IMAGE_HEIGHT])
+
 # 10 outputs, one for each digit
 y = tf.placeholder(tf.float32, shape=[None, 10])
 
@@ -111,10 +116,20 @@ output_layer = fc_layer(hidden_layer, args.hidden_layer_size, 10)
 # define cost function and
 cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(
     logits=output_layer, labels=y))
-optimizer = optimizer_class(args.learning_rate).minimize(cost)
+
+# learning rate decay
+batch = tf.Variable(0, trainable=False)
+learning_rate = tf.train.exponential_decay(
+  args.learning_rate,  # Base learning rate.
+  batch,               # Current index into the dataset.
+  1,                   # Decay step.
+  args.decay,          # Decay rate.
+  staircase=True)
+
+optimizer = optimizer_class(learning_rate).minimize(cost, global_step=batch)
 
 # measure accuracy - pick the output with the highest score as the prediction
-pred = tf.argmax(output_layer, 1)
+pred = tf.argmax(tf.nn.softmax(output_layer), 1)  # softmax is optional here
 correct_prediction = tf.equal(pred, tf.argmax(y, 1))
 accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
 
@@ -123,20 +138,21 @@ accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
 # Y_data to a sparse matrix. So each row in converted from a single digit to a
 # 10-digit vector having nine zeros and a single number one (indicating the
 # correct answer for a given row/image)
-Y_sparse = sparse.csr_matrix((np.ones(numSamples),
-                              Y_data.reshape(numSamples),
-                              range(numSamples+1))).toarray()
+Y_sparse = tf.keras.utils.to_categorical(Y_data, 10)
 
 sess = tf.Session()
 sess.run(tf.global_variables_initializer())
 print("Training ({:d} epochs)...".format(args.epochs))
 
 for epoch in range(args.epochs):
-    _, accuracy_value, cost_value = sess.run(
-        [optimizer, accuracy, cost], feed_dict={x: X_data, y: Y_sparse})
-    if args.verbose and not epoch % 20:
-        print('Epoch: {:04d} cost={:.9f} accuracy={}'.format(
-            epoch+1, cost_value, accuracy_value))
+    _, accuracy_value, cost_value, current_lr = sess.run(
+        [optimizer, accuracy, cost, learning_rate],
+        feed_dict={x: X_data, y: Y_sparse})
+
+    if args.verbose and not (epoch + 1) % 20:
+        print('Epoch: {:04d} cost={:.9f} accuracy={:.6f} '
+              'learning_rate={:.6f}'.format(epoch+1, cost_value,
+                                            accuracy_value, current_lr))
 
 # Get the answers (from the nn) and print the accuracy report
 y_pred = sess.run(pred, feed_dict={x: X_data, y: Y_sparse})
