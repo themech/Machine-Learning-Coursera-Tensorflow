@@ -1,12 +1,14 @@
 # In this example we're adding simple regularization to try prevent
 # overfitting. Regularization is implemented by minimizing non-bias NN
 # variables. By playing with the "r" parameter you can see that it can decrease
-# the difference between lean and test set accuracy. Unfortunately it doesn't
-# produce much better results, as fully connected network is not best suited
-# for recognizing images. Also regularization that works for linear regression
-# is not best suited for deep networks as they are highly nonconvex.
+# the difference between the learn and test set accuracy. Unfortunately it
+# doesn't produce much better results, as fully connected network is not best
+# suited for recognizing images and it hard to push its performance any
+# further. Also regularization that works for linear regression is not best
+# suited for deep networks as they are highly nonconvex.
 # In te next example we will implement convolutional network that is able to
-# look for specific shapes in the image rather than pixels.
+# look for specific shapes in the image rather than pixels. We will also use
+# dropout regularization.
 
 import argparse
 import matplotlib.pyplot as plt
@@ -14,6 +16,7 @@ from scipy import io
 from sklearn import metrics
 from sklearn.model_selection import train_test_split
 import tensorflow as tf
+import numpy
 
 # size of a single digit image (in pixels)
 IMAGE_WIDTH = 20
@@ -24,19 +27,22 @@ TEST_SIZE = 0.25  # test set will be 25% of the data
 parser = argparse.ArgumentParser(
     description='Recognizing hand-written number using neural network.')
 parser.add_argument('-s', '--hidden_layer_size', type=int,
-                    help='number of neurons in the hidden layer (default: 25)',
-                    default=25)
+                    help='number of neurons in the hidden layer (default: 64)',
+                    default=64)
 parser.add_argument('-lr', '--learning_rate', type=float,
-                    help='learning rate for the algorithm (default: 0.0001)',
-                    default=0.0001)
+                    help='learning rate for the algorithm (default: 0.5)',
+                    default=0.5)
+parser.add_argument('-d', '--decay', dest='decay', type=float,
+                    help='learning rate decay (default: 0.9999, 1.0 means '
+                    'no decay)', default=0.9999)
 parser.add_argument('-r', '--regularizer', type=float,
                     help='regularization multiplier (default: 0.001)',
                     default=0.001)
 parser.add_argument('-e', '--epochs', type=int,
-                    help='number of epochs (default: 5000)', default=5000)
+                    help='number of epochs (default: 1000)', default=1000)
 parser.add_argument('-o', '--optimizer', type=str,
-                    help='tensorflow optimizer class (default: AdamOptimizer)',
-                    default='AdamOptimizer')
+                    help='tensorflow optimizer class (default: '
+                    'AdagradOptimizer)', default='AdagradOptimizer')
 parser.add_argument('-v', '--verbose', dest='verbose', action='store_true',
                     help='increase output verbosity')
 args = parser.parse_args()
@@ -78,7 +84,7 @@ def fc_layer(input, size_in, size_out):
     """
     w = tf.Variable(tf.truncated_normal([size_in, size_out], stddev=0.1))
     # var name needed later for variable filtering
-    b = tf.Variable(tf.constant(0.1, shape=[size_out]), name='bias')
+    b = tf.Variable(tf.truncated_normal([size_out], stddev=0.1), name='bias')
     return tf.nn.relu(tf.matmul(input, w) + b)
 
 
@@ -92,6 +98,7 @@ if args.verbose:
         args.hidden_layer_size))
 
 hidden_layer = fc_layer(x, IMAGE_WIDTH * IMAGE_HEIGHT, args.hidden_layer_size)
+
 output_layer = fc_layer(hidden_layer, args.hidden_layer_size, 10)
 
 # calculate the regularization cost by combining non-bias variables
@@ -102,11 +109,20 @@ regularization_loss = tf.add_n([tf.nn.l2_loss(v) for v in nn_vars
 cost = tf.reduce_mean(tf.nn.sparse_softmax_cross_entropy_with_logits(
     logits=output_layer, labels=y))
 
-optimizer = optimizer_class(args.learning_rate).minimize(
-    cost + regularization_loss)
+# learning rate decay
+batch = tf.Variable(0, trainable=False)
+learning_rate = tf.train.exponential_decay(
+  args.learning_rate,  # Base learning rate.
+  batch,               # Current index into the dataset.
+  1,                   # Decay step.
+  args.decay,          # Decay rate.
+  staircase=True)
+
+optimizer = optimizer_class(learning_rate).minimize(cost + regularization_loss,
+                                                    global_step=batch)
 
 # measure accuracy - pick the output with the highest score as the prediction
-pred = tf.argmax(output_layer, 1)
+pred = tf.argmax(tf.nn.softmax(output_layer), 1)  # softmax is optional here
 correct_prediction = tf.equal(pred, y)
 accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
 
@@ -122,7 +138,7 @@ sess.run(tf.global_variables_initializer())
 
 for epoch in range(args.epochs):
 
-    if not epoch % 5:
+    if not (epoch+1) % 5:
         train_accuracy = sess.run([accuracy], feed_dict={x: X_data, y: Y_data})
         test_accuracy = sess.run([accuracy],
                                  feed_dict={x: X_test_data, y: Y_test_data})
@@ -143,6 +159,10 @@ y_test_pred = sess.run(pred, feed_dict={x: X_test_data, y: Y_test_data})
 print(metrics.classification_report(Y_test_data, y_test_pred))
 
 print("Plotting accuracy over time...")
-plt.plot(iter_arr, train_accuracy_arr, 'ro-')
-plt.plot(iter_arr, test_accuracy_arr, 'g^-')
+plt.plot(iter_arr, train_accuracy_arr, label='train accuracy')
+plt.plot(iter_arr, test_accuracy_arr, label='test accuracy')
+plt.xlabel('epoch', fontsize=16)
+plt.ylabel('accuracy', fontsize=16)
+plt.legend(bbox_to_anchor=(0, 1), loc=2, borderaxespad=0.)
+
 plt.show()
