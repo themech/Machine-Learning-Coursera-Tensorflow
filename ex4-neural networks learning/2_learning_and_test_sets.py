@@ -55,7 +55,7 @@ Y_data[Y_data == 10] = 0
 
 # Split the data
 X_data, X_test_data, Y_data, Y_test_data = train_test_split(
-    X_data, Y_data, test_size=0.25)
+    X_data, Y_data, test_size=TEST_SIZE)
 
 if args.verbose:
     print('Shape of the X_data', X_data.shape)
