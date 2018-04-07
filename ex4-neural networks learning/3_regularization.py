@@ -16,7 +16,6 @@ from scipy import io
 from sklearn import metrics
 from sklearn.model_selection import train_test_split
 import tensorflow as tf
-import numpy
 
 # size of a single digit image (in pixels)
 IMAGE_WIDTH = 20
