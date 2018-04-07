@@ -12,7 +12,7 @@ import argparse
 import math
 import numpy as np
 import os
-from scipy import io, misc, sparse
+from scipy import io, misc
 from sklearn import metrics
 from sklearn.model_selection import train_test_split
 import tensorflow as tf
@@ -27,16 +27,19 @@ TEST_SIZE = 0.25  # test set will be 25% of the data
 parser = argparse.ArgumentParser(
     description='Recognizing hand-written number using neural network.')
 parser.add_argument('-s', '--hidden_layer_size', type=int,
-                    help='number of neurons in the hidden layer (default: 25)',
-                    default=25)
+                    help='number of neurons in the hidden layer (default: 64)',
+                    default=64)
 parser.add_argument('-lr', '--learning_rate', type=float,
-                    help='learning rate for the algorithm (default: 0.0001)',
-                    default=0.0001)
+                    help='learning rate for the algorithm (default: 0.5)',
+                    default=0.5)
+parser.add_argument('-d', '--decay', dest='decay', type=float,
+                    help='learning rate decay (default: 0.9999, 1.0 means '
+                    'no decay)', default=0.9999)
 parser.add_argument('-e', '--epochs', type=int,
-                    help='number of epochs (default: 5000)', default=5000)
+                    help='number of epochs (default: 1000)', default=1000)
 parser.add_argument('-o', '--optimizer', type=str,
-                    help='tensorflow optimizer class (default: AdamOptimizer)',
-                    default='AdamOptimizer')
+                    help='tensorflow optimizer class (default: '
+                    'AdagradOptimizer)', default='AdagradOptimizer')
 parser.add_argument('-v', '--verbose', dest='verbose', action='store_true',
                     help='increase output verbosity')
 parser.add_argument('--dir', type=str,
@@ -54,6 +57,7 @@ X_data, Y_data = data['X'], data['y']
 # y==10 is digit 0, convert it to 0 then to make the code below simpler
 Y_data[Y_data == 10] = 0
 
+# Split the data
 X_data, X_test_data, Y_data, Y_test_data = train_test_split(
     X_data, Y_data, test_size=TEST_SIZE)
 
@@ -69,7 +73,7 @@ def fc_layer(input, size_in, size_out, name="fc"):
     with tf.name_scope(name):
         w = tf.Variable(tf.truncated_normal([size_in, size_out], stddev=0.1),
                         name="W")
-        b = tf.Variable(tf.constant(0.1, shape=[size_out]), name="B")
+        b = tf.Variable(tf.truncated_normal([size_out], stddev=0.1), name="B")
         act = tf.nn.relu(tf.matmul(input, w) + b)
         tf.summary.histogram("weights", w)
         tf.summary.histogram("biases", b)
@@ -99,11 +103,22 @@ with tf.name_scope("xent"):
             logits=output_layer, labels=y), name="xent")
     tf.summary.scalar("xent", xent)
 
+with tf.name_scope("learning_rate"):
+    batch = tf.Variable(0, trainable=False, name="batch")
+    learning_rate = tf.train.exponential_decay(
+      args.learning_rate,  # Base learning rate.
+      batch,               # Current index into the dataset.
+      1,                   # Decay step.
+      args.decay,          # Decay rate.
+      staircase=True)
+    tf.summary.scalar("learning_rate", learning_rate)
+
 with tf.name_scope("train"):
-    train_step = tf.train.AdamOptimizer(args.learning_rate).minimize(xent)
+    train_step = optimizer_class(learning_rate).minimize(xent,
+                                                         global_step=batch)
 
 with tf.name_scope("accuracy"):
-    pred = tf.argmax(output_layer, 1)
+    pred = tf.argmax(tf.nn.softmax(output_layer), 1)
     correct_prediction = tf.equal(pred, tf.argmax(y, 1))
     accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
     tf.summary.scalar("accuracy", accuracy)
@@ -186,16 +201,12 @@ tf.contrib.tensorboard.plugins.projector.visualize_embeddings(test_writer,
 
 # Convert the aswers vector to a sparse matrix (refer to
 # 1_nn_training_example.py for a more detailed comment)
-Y_sparse = sparse.csr_matrix((np.ones(numSamples),
-                              Y_data.reshape(numSamples),
-                              range(numSamples+1))).toarray()
-Y_test_sparse = sparse.csr_matrix((np.ones(numTestSamples),
-                                   Y_test_data.reshape(numTestSamples),
-                                   range(numTestSamples+1))).toarray()
+Y_sparse = tf.keras.utils.to_categorical(Y_data, 10)
+Y_test_sparse = tf.keras.utils.to_categorical(Y_test_data, 10)
 
 print("Training...")
 
-for epoch in range(args.epochs):
+for epoch in range(1, args.epochs+1):
 
     if not epoch % 5:
         # Write summary for the training set
@@ -217,7 +228,7 @@ for epoch in range(args.epochs):
 
             if args.verbose:
                 print('Epoch: {:04d}, accuracy: {}, test accuracy: {}'.format(
-                    epoch+1, train_accuracy, test_accuracy))
+                    epoch, train_accuracy, test_accuracy))
 
     if not epoch % 100:
         # Projector data in tensorboard is based on checkpoints, so every now
