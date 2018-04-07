@@ -25,8 +25,8 @@ CONV1_SIZE = 32
 CONV2_SIZE = 64
 
 # Parse the command line arguments (or use default values)
-parser = argparse.ArgumentParser(description=
-                                 'Recognizing hand-written number using neural network.')
+parser = argparse.ArgumentParser(
+    description='Recognizing hand-written number using neural network.')
 parser.add_argument('-s', '--fully_connected_layer_size', type=int,
                     help='number of neurons in the densely connected layer '
                     '(default: 1024)', default=1024)
@@ -86,7 +86,7 @@ def readout_layer(input, size_in, size_out):
     densely connected layer, just without the ReLU
     """
     w = tf.Variable(tf.truncated_normal([size_in, size_out], stddev=0.1))
-    b = tf.Variable(tf.constant(0.1, shape=[size_out]), name="bias")
+    b = tf.Variable(tf.truncated_normal([size_out], stddev=0.1))
     return tf.matmul(input, w) + b
 
 
@@ -106,11 +106,21 @@ def conv_layer(input, size_in, size_out):
     """
     w = tf.Variable(tf.truncated_normal([FSIZE, FSIZE, size_in, size_out],
                                         stddev=0.1))
-    b = tf.Variable(tf.constant(0.1, shape=[size_out]), name="bias")
-    conv = tf.nn.conv2d(input, w, strides=[1, 1, 1, 1], padding="SAME")
+    b = tf.Variable(tf.truncated_normal([size_out], stddev=0.1), name='bias')
+    conv = tf.nn.conv2d(input, w, strides=[1, 1, 1, 1], padding='SAME')
     act = tf.nn.relu(conv + b)
     return tf.nn.max_pool(act, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1],
-                          padding="SAME")
+                          padding='SAME')
+
+
+def batches_generator(features, labels, batch_size, num_epochs=None,
+                      shuffle=True):
+    dataset = tf.data.Dataset.from_tensor_slices((features, labels))
+    dataset = dataset.batch(batch_size).repeat(num_epochs)
+    if shuffle:
+        dataset = dataset.shuffle(10000)
+    feature_batch, label_batch = dataset.make_one_shot_iterator().get_next()
+    return feature_batch, label_batch
 
 
 # Setup placeholders, and reshape the data
@@ -153,7 +163,7 @@ cost = tf.reduce_mean(tf.nn.sparse_softmax_cross_entropy_with_logits(
 optimizer = optimizer_class(args.learning_rate).minimize(cost)
 
 # measure accuracy - pick the output with the highest score as the prediction
-pred = tf.argmax(output_layer, 1)
+pred = tf.argmax(tf.nn.softmax(output_layer), 1)  # softmax is optional here
 correct_prediction = tf.equal(pred, y)
 accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
 
@@ -164,26 +174,11 @@ iter_arr = []
 train_accuracy_arr = []
 test_accuracy_arr = []
 
+X_batch_tensor, Y_batch_tensor = batches_generator(X_data, Y_data,
+                                                   args.batch_size)
+
 sess = tf.Session()
 sess.run(tf.global_variables_initializer())
-
-
-def next_batch(num, data, labels):
-    """Helper function for creating batches from the training set.
-
-    :param num: number of examples to sample
-    :param data: array of features
-    :param labels: array of labels
-    :return: a tuple: array of sampled features and array of sampled labels
-    """
-    idx = np.arange(0, len(data))
-    np.random.shuffle(idx)
-    idx = idx[:num]
-    data_shuffle = [data[i] for i in idx]
-    labels_shuffle = [labels[i] for i in idx]
-
-    return np.asarray(data_shuffle), np.asarray(labels_shuffle)
-
 
 for epoch in range(args.epochs):
     with sess.as_default():
@@ -203,7 +198,7 @@ for epoch in range(args.epochs):
                 print('Epoch: {:04d}, accuracy: {}, test accuracy: {}'.format(
                     epoch+1, train_accuracy, test_accuracy))
 
-        X_data_batch, Y_data_batch = next_batch(args.batch_size, X_data, Y_data)
+        X_data_batch, Y_data_batch = sess.run((X_batch_tensor, Y_batch_tensor))
         optimizer.run(feed_dict={x: X_data_batch, y: Y_data_batch,
                                  keep_prob: args.dropout,
                                  conv_dropout: args.conv_dropout})
