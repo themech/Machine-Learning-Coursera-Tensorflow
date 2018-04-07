@@ -115,6 +115,15 @@ def conv_layer(input, size_in, size_out):
 
 def batches_generator(features, labels, batch_size, num_epochs=None,
                       shuffle=True):
+    """Helper function for creating batches from the training set.
+
+    :param features: array of features
+    :param labels: array of labels
+    :param batch_size: number of items per batch
+    :param num_epochs: limit generated data to N epochs, None for no limit
+    :param shuffle: shuffle the data before generating batches
+    :return: two tensors generating batched feature and label data
+    """
     dataset = tf.data.Dataset.from_tensor_slices((features, labels))
     dataset = dataset.batch(batch_size).repeat(num_epochs)
     if shuffle:
