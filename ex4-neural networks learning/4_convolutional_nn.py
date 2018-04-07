@@ -9,7 +9,6 @@
 import argparse
 import math
 import matplotlib.pyplot as plt
-import numpy as np
 from scipy import io
 from sklearn import metrics
 from sklearn.model_selection import train_test_split
@@ -32,20 +31,20 @@ parser.add_argument('-s', '--fully_connected_layer_size', type=int,
                     '(default: 1024)', default=1024)
 parser.add_argument('-d', '--dropout', type=float,
                     help='dropout probability (default: 0.5)', default=0.5)
-parser.add_argument('-c', '--conv_dropout', type=float,
-                    help='convolutional layer dropout (default: 0.95)',
-                    default=0.95)
-parser.add_argument('-lr', '--learning_rate', type=float,
-                    help='learning rate for the algorithm (default: 0.0001)',
-                    default=0.0001)
 parser.add_argument('-b', '--batch_size', type=int,
                     help='Batch size for a single learning step (default: 50)',
                     default=50)
 parser.add_argument('-e', '--epochs', type=int,
-                    help='number of epochs (default: 5000)', default=2000)
+                    help='number of epochs (default: 1000)', default=1000)
 parser.add_argument('-o', '--optimizer', type=str,
-                    help='tensorflow optimizer class (default: AdamOptimizer)',
-                    default='AdamOptimizer')
+                    help='tensorflow optimizer class (default: '
+                    'AdagradOptimizer)', default='AdagradOptimizer')
+parser.add_argument('-lr', '--learning_rate', type=float,
+                    help='learning rate for the algorithm (default: 0.05)',
+                    default=0.05)
+parser.add_argument('--decay', dest='decay', type=float,
+                    help='learning rate decay (default: 0.95, 1.0 means '
+                    'no decay)', default=0.95)
 parser.add_argument('-v', '--verbose', dest='verbose', action='store_true',
                     help='increase output verbosity')
 args = parser.parse_args()
@@ -138,14 +137,8 @@ y = tf.placeholder(tf.int64, shape=[None])  # simple vector
 
 x_image = tf.reshape(x, [-1, IMAGE_WIDTH, IMAGE_HEIGHT, 1])
 
-# Experiment - dropout for conv layers. Check if that prevents some overfitting
-# in these layers.
-conv_dropout = tf.placeholder(tf.float32)
-
 conv1 = conv_layer(x_image, 1, CONV1_SIZE)  # First convolutional layer
-conv1 = tf.nn.dropout(conv1, conv_dropout)
 conv2 = conv_layer(conv1, CONV1_SIZE, CONV2_SIZE)  # Second convolutional layer
-conv2 = tf.nn.dropout(conv2, conv_dropout)
 
 # Flatten the data before going to the next steps. Conv layer and polling
 # change the dimension, each layer decreases the size by half. so the final
@@ -158,7 +151,7 @@ flattened = tf.reshape(conv2, [-1, CONV2_SIZE * resize_width * resize_height])
 fc = fc_layer(flattened, CONV2_SIZE * resize_width * resize_height,
               args.fully_connected_layer_size)
 
-# Apply dropout to reduce overfitting
+# Regularization: apply dropout to reduce overfitting
 keep_prob = tf.placeholder(tf.float32)
 fc_drop = tf.nn.dropout(fc, keep_prob)
 
@@ -169,7 +162,16 @@ output_layer = readout_layer(fc_drop, args.fully_connected_layer_size, 10)
 cost = tf.reduce_mean(tf.nn.sparse_softmax_cross_entropy_with_logits(
     logits=output_layer, labels=y))
 
-optimizer = optimizer_class(args.learning_rate).minimize(cost)
+# learning rate decay
+batch = tf.Variable(0, trainable=False)
+learning_rate = tf.train.exponential_decay(
+  args.learning_rate,                 # Base learning rate.
+  batch,                              # Current index into the dataset.
+  X_data.shape[0] / args.batch_size,  # Decay step based train set on batching
+  args.decay,                         # Decay rate.
+  staircase=True)
+
+optimizer = optimizer_class(learning_rate).minimize(cost, global_step=batch)
 
 # measure accuracy - pick the output with the highest score as the prediction
 pred = tf.argmax(tf.nn.softmax(output_layer), 1)  # softmax is optional here
@@ -190,36 +192,33 @@ sess = tf.Session()
 sess.run(tf.global_variables_initializer())
 
 for epoch in range(args.epochs):
-    with sess.as_default():
 
-        if not (epoch + 1) % 15:
-            test_accuracy = 0
-            train_accuracy = 0
-            train_accuracy = accuracy.eval(feed_dict={
-                x: X_data, y: Y_data, keep_prob: 1.0, conv_dropout: 1.0})
-            test_accuracy = accuracy.eval(feed_dict={
-                x: X_test_data, y: Y_test_data, keep_prob: 1.0,
-                conv_dropout: 1.0})
-            iter_arr.append(epoch)
-            train_accuracy_arr.append(train_accuracy)
-            test_accuracy_arr.append(test_accuracy)
-            if args.verbose:
-                print('Epoch: {:04d}, accuracy: {}, test accuracy: {}'.format(
-                    epoch+1, train_accuracy, test_accuracy))
+    if not (epoch + 1) % 20:
+        train_accuracy, train_cost = sess.run(
+            (accuracy, cost), feed_dict={x: X_data, y: Y_data, keep_prob: 1.0})
+        test_accuracy, test_cost = sess.run(
+            (accuracy, cost),
+            feed_dict={x: X_test_data, y: Y_test_data, keep_prob: 1.0})
+        iter_arr.append(epoch)
+        train_accuracy_arr.append(train_accuracy)
+        test_accuracy_arr.append(test_accuracy)
+        if args.verbose:
+            print('Epoch: {:04d}, accuracy: {:.4f}, cost: {:.4f}, '
+                  'test accuracy: {:.4f}, test cost: {:.4f}'.format(
+                      epoch+1, train_accuracy, train_cost, test_accuracy,
+                      test_cost))
 
-        X_data_batch, Y_data_batch = sess.run((X_batch_tensor, Y_batch_tensor))
-        optimizer.run(feed_dict={x: X_data_batch, y: Y_data_batch,
-                                 keep_prob: args.dropout,
-                                 conv_dropout: args.conv_dropout})
+    X_data_batch, Y_data_batch = sess.run((X_batch_tensor, Y_batch_tensor))
+    sess.run(optimizer, feed_dict={x: X_data_batch, y: Y_data_batch,
+                                   keep_prob: args.dropout})
 
 print("Accuracy report for the learning set")
-y_pred = sess.run(pred, feed_dict={x: X_data, y: Y_data, keep_prob: 1.0,
-                                   conv_dropout: 1.0})
+y_pred = sess.run(pred, feed_dict={x: X_data, y: Y_data, keep_prob: 1.0})
 print(metrics.classification_report(Y_data, y_pred))
 
 print("Accuracy report for the test set")
 y_test_pred = sess.run(pred, feed_dict={x: X_test_data, y: Y_test_data,
-                                        keep_prob: 1.0, conv_dropout: 1.0})
+                                        keep_prob: 1.0})
 print("shape of x", X_test_data.shape)
 print("shape of y", Y_test_data.shape)
 print("shape of y_test_pred", y_test_pred.shape)
@@ -227,6 +226,9 @@ print("shape of y_test_pred", y_test_pred.shape)
 print(metrics.classification_report(Y_test_data, y_test_pred))
 
 print("Plotting accuracy over time...")
-plt.plot(iter_arr, train_accuracy_arr, 'ro-')
-plt.plot(iter_arr, test_accuracy_arr, 'g^-')
+plt.plot(iter_arr, train_accuracy_arr, label='train accuracy')
+plt.plot(iter_arr, test_accuracy_arr, label='test accuracy')
+plt.xlabel('epoch', fontsize=16)
+plt.ylabel('accuracy', fontsize=16)
+plt.legend(bbox_to_anchor=(0, 1), loc=2, borderaxespad=0.)
 plt.show()
